@@ -60,7 +60,7 @@ if draw:
 		return text
 
 	count = 0
-	#rs.EnableRedraw(False)
+	rs.EnableRedraw(False)
 	while count != len(sc.sticky["dict_section"]):
 		rs.Command("_SelAll")
 		rs.Command("_CPlane " + "_I " + Convertpt(sc.sticky["dict_section"], count, 0) + " " + "_V " + Convertpt(sc.sticky["dict_section"], count, 1) + " ")
@@ -73,5 +73,5 @@ if draw:
 		rs.Command("_SelClippingPlane")
 		rs.Command("_Delete")
 		count += 1
-	#rs.EnableRedraw(True)
+	rs.EnableRedraw(True)
 	Reset()

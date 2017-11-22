@@ -39,10 +39,9 @@ sc.sticky["dict_section"][sc.sticky["count_section"]] = Roundnum(startpt, endpt)
 print sc.sticky["dict_section"]
 
 #///////////////////////////ボタン入力したあとの動作
-draw = False
 if next:
 	if len(sc.sticky["dict_section"]) == len(curve):
-		draw = True
+		print("start draw?")
 	else:
 		sc.sticky["count_section"] += 1
 
@@ -64,8 +63,8 @@ if draw:
 	#rs.EnableRedraw(False)
 	while count != len(sc.sticky["dict_section"]):
 		rs.Command("_SelAll")
-		rs.Command("_CPlane " + "_I " +Convertpt(sc.sticky["dict_section"], count, 0) + " " + Convertpt(sc.sticky["dict_section"], count, 1) + " " + Convertpt(sc.sticky["dict_section"], count, 2) + " ")
-		rs.Command("_Clippingplane " + "_p " + Convertpt(sc.sticky["dict_section"], count, 0) + " " + Convertpt(sc.sticky["dict_section"], count, 1) + " " + str(1000) + " ")
+		rs.Command("_CPlane " + "_I " + Convertpt(sc.sticky["dict_section"], count, 0) + " " + "_V " + Convertpt(sc.sticky["dict_section"], count, 1) + " ")
+		rs.Command("_Clippingplane " + "_C " + Convertpt(sc.sticky["dict_section"], count, 0) + " " + str(1000) + " " + str(1000) + " ")
 		rs.Command("_Plan")
 		rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
 		rs.Command("_CPlane " + "_W " + "_T ")

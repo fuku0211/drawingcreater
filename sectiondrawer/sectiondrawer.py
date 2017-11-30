@@ -99,16 +99,20 @@ if draw:
 	count = 0
 	#rs.EnableRedraw(False)# 画面の描画を停止
 	while count != len(sc.sticky["dict_sec"]):
+		sectionline = curve[count]
+		if sc.sticky["dict_sec"][count][1] == True:# flipするとき
+			rs.ReverseCurve(sectionline)
+		else:# flip しないとき
+			pass
 		if sc.sticky["dict_sec"][count][0] == 0:# 折れ曲がらない断面線のとき
-			p0 = SelEndPt(curve[count], sc.sticky["dict_sec"][count][1])[0]
-			p1 = SelEndPt(curve[count], sc.sticky["dict_sec"][count][1])[1]
 			rs.Command("_SelPt")
 			rs.Command("_SelCrv")
 			rs.Command("_Lock")
-			rs.Command("_SelAll")
-			rs.Command("_CPlane " + "_I " + ConvertPt(p0) + " " + "_V " + ConvertPt(p1) + " ")
+			rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(sectionline)) + " " + "_V " + ConvertPt(rs.CurveEndPoint(sectionline)) + " ")
 			rs.Command("_Clippingplane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 			rs.Command("_Plan")
+			rs.ZoomExtents()
+			rs.Command("_SelVisible " + "_Enter ")
 			rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
 			rs.Command("_CPlane " + "_W " + "_T ")
 			rs.Command("-_Export " + directory + name + str(count) + ".3dm")
@@ -121,69 +125,39 @@ if draw:
 			rs.Command("_SelCrv")
 			rs.Command("_Lock")
 			segment = range(0,sc.sticky["dict_sec"][count][0],2)
-			print segment
 			for i in segment:
-				if sc.sticky["dict_sec"][count][1] == True:# flipするとき
-					if i == 0:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i + 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					elif i == segment[-1]:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i - 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					else:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i + 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[i - 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				else:# flip しないとき
-					if i == 0:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i + 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					elif i == segment[-1]:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i - 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					else:
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i + 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-						rs.Command("_CPlane " + "_W " + "_T ")
-						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[i - 1])) + " ")
-						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				if sc.sticky["dict_sec"][count][1] == True:
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[0])) + " ")
+				if i == 0:
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+				elif i == segment[-1]:
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 				else:
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[0])) + " ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
+					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+				rs.Command("_CPlane " + "_W " + "_T ")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
 				rs.Command("_Plan")
-				rs.ZoomExtents
+				rs.ZoomExtents()
 				rs.Command("_SelVisible " + "_Enter ")
 				rs.Command("-_Make2d " + "_D " + "_U " + "_Enter ")
 				rs.Command("_Hide")
 				rs.Command("_CPlane " + "_W " + "_T ")
 				rs.Command("_SelClippingPlane")
 				rs.Command("_Delete")
-			if sc.sticky["dict_sec"][count][1] == True:
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(rs.ReverseCurve(curve))[0])) + " ")
-			else:
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(curve)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(curve)[0])) + " ")
+			rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
 			rs.Command("_Show")
 			rs.Command("_SelCrv")
 			rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
@@ -191,7 +165,7 @@ if draw:
 			rs.Command("-_Export " + directory + name + str(count) + ".3dm")
 			rs.Command("_SelCrv")
 			rs.Command("_Delete")
+			rs.Command("_Unlock")
 		count += 1
 	Reset()
-	rs.Command("_Unlock")
 	#rs.EnableRedraw(True)

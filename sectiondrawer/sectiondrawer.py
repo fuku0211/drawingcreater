@@ -2,6 +2,8 @@
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
 import Rhino
+import gc
+import os
 
 if "count_sec" not in sc.sticky:
 	sc.sticky["count_sec"] = 0
@@ -64,7 +66,7 @@ if next:
 	else:
 		sc.sticky["count_sec"] += 1
 
-if redo:
+if undo:
 	if sc.sticky["count_sec"] == 0:
 		pass
 	else:
@@ -76,6 +78,7 @@ def Reset():
 	sc.sticky["dict_sec"] = {}
 	rs.Command("_CPlane " + "_W " + "_T ")
 	rs.Command("_Setview " + "_W " + "_P ")
+	gc.collect()
 	print("end")
 
 if reset:
@@ -83,89 +86,93 @@ if reset:
 
 if draw:
 	print("startdrawing")
-
-	def ConvertPt(pt3d):# "X座標,Y座標,Z座標"と入力用の文を作る
-		text = (str(pt3d[0]) + "," + str(pt3d[1]) + "," + str(pt3d[2]))
-		return text
-	
-	def SelEndPt(line, flip):
-		if flip:
-			start_x = rs.CurveStartPoint(line)
-			end_x = rs.CurveEndPoint(line)
+	exist = []
+	for i in range(len(sc.sticky["dict_sec"])):# 指定の場所で重複しないか確認
+		exist.append(os.path.exists(str(directory) + str(name) + str(i) + ".3dm"))
+	if True in exist:# 一個でも重複する場合
+		ans = rs.MessageBox("ファイルがすでに存在します　上書きしますか？", 4, "上書きの確認")
+		if ans == int(6):# Massageboxのはいは6で返却される
+			save = True
 		else:
-			start_x = rs.CurveEndPoint(line)
-			end_x = rs.CurveStartPoint(line)
+			save = False
+	else:
+		save = True
 
-	count = 0
-	#rs.EnableRedraw(False)# 画面の描画を停止
-	while count != len(sc.sticky["dict_sec"]):
-		sectionline = curve[count]
-		if sc.sticky["dict_sec"][count][1] == True:# flipするとき
-			rs.ReverseCurve(sectionline)
-		else:# flip しないとき
-			pass
-		if sc.sticky["dict_sec"][count][0] == 0:# 折れ曲がらない断面線のとき
-			rs.Command("_SelPt")
-			rs.Command("_SelCrv")
-			rs.Command("_Lock")
-			rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(sectionline)) + " " + "_V " + ConvertPt(rs.CurveEndPoint(sectionline)) + " ")
-			rs.Command("_Clippingplane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-			rs.Command("_Plan")
-			rs.ZoomExtents()
-			rs.Command("_SelVisible " + "_Enter ")
-			rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
-			rs.Command("_CPlane " + "_W " + "_T ")
-			rs.Command("-_Export " + directory + name + str(count) + ".3dm")
-			rs.Command("_SelCrv")
-			rs.Command("_SelClippingPlane")
-			rs.Command("_Delete")
-			rs.Command("_Unlock")
-		else:# 複雑な断面線のとき
-			rs.Command("_SelPt")
-			rs.Command("_SelCrv")
-			rs.Command("_Lock")
-			segment = range(0,sc.sticky["dict_sec"][count][0],2)
-			for i in segment:
-				if i == 0:
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					rs.Command("_CPlane " + "_W " + "_T ")
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				elif i == segment[-1]:
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					rs.Command("_CPlane " + "_W " + "_T ")
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				else:
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					rs.Command("_CPlane " + "_W " + "_T ")
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-					rs.Command("_CPlane " + "_W " + "_T ")
-					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
-					rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
+	if save == True:# 重複がない/上書きするときに実行
+		def ConvertPt(pt3d):# "X座標,Y座標,Z座標"と入力用の文を作る
+			text = (str(pt3d[0]) + "," + str(pt3d[1]) + "," + str(pt3d[2]))
+			return text
+
+		count = 0
+		rs.Command("_CPlane " + "_W " + "_T ")
+		rs.Command("_Show")
+		rs.Command("_SelLight")
+		rs.Command("_SelPt")
+		rs.Command("_SelCrv")
+		rs.Command("_Lock")
+		while count != len(sc.sticky["dict_sec"]):
+			sectionline = curve[count]
+			if sc.sticky["dict_sec"][count][1] == True:# flipするとき
+				rs.ReverseCurve(sectionline)
+			else:# flip しないとき
+				pass
+			if sc.sticky["dict_sec"][count][0] == 0:# 折れ曲がらない断面線のとき
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(sectionline)) + " " + "_V " + ConvertPt(rs.CurveEndPoint(sectionline)) + " ")
+				rs.Command("_Clippingplane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 				rs.Command("_Plan")
-				rs.ZoomExtents()
-				rs.Command("_SelVisible " + "_Enter ")
-				rs.Command("-_Make2d " + "_D " + "_U " + "_Enter ")
-				rs.Command("_Hide")
+				rs.Command("_SelAll")
+				rs.ZoomSelected()
+				rs.Command("_SelNone")
+				rs.Command("_SelVisible " + "_Enter")
+				rs.Command("-_Make2d " + "_D " + "_C " + "_Enter")
 				rs.Command("_CPlane " + "_W " + "_T ")
+				rs.Command("-_Export " + directory + name + str(count) + ".3dm")
+				rs.Command("_SelCrv")
 				rs.Command("_SelClippingPlane")
 				rs.Command("_Delete")
-			rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
-			rs.Command("_Show")
-			rs.Command("_SelCrv")
-			rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
-			rs.Command("_CPlane " + "_W " + "_T ")
-			rs.Command("-_Export " + directory + name + str(count) + ".3dm")
-			rs.Command("_SelCrv")
-			rs.Command("_Delete")
-			rs.Command("_Unlock")
-		count += 1
-	Reset()
-	#rs.EnableRedraw(True)
+			else:# 複雑な断面線のとき
+				segment = range(0,sc.sticky["dict_sec"][count][0],2)
+				for i in segment:
+					if i == 0:
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+						rs.Command("_CPlane " + "_W " + "_T ")
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					elif i == segment[-1]:
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+						rs.Command("_CPlane " + "_W " + "_T ")
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					else:
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+						rs.Command("_CPlane " + "_W " + "_T ")
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i + 1])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+						rs.Command("_CPlane " + "_W " + "_T ")
+						rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[i - 1])) + " ")
+						rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
+					rs.Command("_Plan")
+					rs.Command("_SelAll")
+					rs.ZoomSelected()
+					rs.Command("_SelVisible " + "_Enter")
+					rs.Command("-_Make2d " + "_D " + "_U " + "_Enter")
+					rs.Command("_Hide")
+					rs.Command("_CPlane " + "_W " + "_T ")
+					rs.Command("_SelClippingPlane")
+					rs.Command("_Delete")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(sectionline)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(sectionline)[0])) + " ")
+				rs.Command("_Show")
+				rs.Command("_SelCrv")
+				rs.Command("-_Make2d " + "_D " + "_C " + "_Enter ")
+				rs.Command("_CPlane " + "_W " + "_T ")
+				rs.Command("-_Export " + directory + name + str(count) + ".3dm")
+				rs.Command("_SelCrv")
+				rs.Command("_Delete")
+			count += 1
+		rs.Command("_Unlock")
+		Reset()

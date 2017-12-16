@@ -5,7 +5,6 @@ import Rhino
 import os
 import time
 from math import sqrt
-import sys
 
 len_p = str(len(height)) + " 枚の平面図を生成します"
 len_s = str(len(curve_s)) + " 枚の断面図を生成します"
@@ -136,7 +135,7 @@ if draw:
 			duplicate = True
 			print("no duplicate")
 		print("■end confirmdup■")
-		return dup# 重複が存在しないor上書きする場合はTrueで返却
+		return duplicate# 重複が存在しないor上書きする場合はTrueで返却
 
 	# "X座標,Y座標,Z座標"と入力用の文を作る
 	def ConvertPt(pt3d):

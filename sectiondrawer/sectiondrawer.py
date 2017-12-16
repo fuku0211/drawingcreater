@@ -54,9 +54,9 @@ if draw:
 		sc.doc = Rhino.RhinoDoc.ActiveDoc
 		layers = rs.LayerNames()
 		if "Make2D" in layers:
-			dellayer = rs.MessageBox("既に'Make2D'レイヤーが存在します　削除しますか？", 4, "レイヤーの確認")
-			if dellayer == int(6):
-				rs.PurgeLayer("Make2D")
+			dellayer = rs.MessageBox("既に存在する'Make2D'レイヤーは削除されます　問題ないですか？", 4, "レイヤーの確認")
+			if dellayer == int(6):# Massageboxのはいは6で返却される
+				rs.PurgeLayer("Make2D")# 作図中にMake2Dレイヤーが作成されるため、前もって削除
 				layer = True
 				print("deleted layer")
 			else:
@@ -79,7 +79,7 @@ if draw:
 		else:
 			newfolder = rs.MessageBox("指定したフォルダが存在しません(" + str(dir) + ")　フォルダを新規作成しますか？", 4, "フォルダの確認")
 			if newfolder == int(6):# Massageboxのはいは6で返却される
-				os.mkdir(str(dir))
+				os.mkdir(str(dir))# 指定したディレクトリにフォルダを新規作成
 				folder = True
 				print("makingnewfolder")
 			else:
@@ -92,7 +92,7 @@ if draw:
 	# ファイル名に重複がないか確認する
 	def ConfirmDup(dir, num, nam, line):
 		print("■start confirmdup■")
-		dup = []
+		dup = []# ダブリがある場合はTrue、ない場合はFalseが格納されるリスト
 		for i in num:# 指定の場所で重複しないか確認(平面)
 			if i > 0:
 				i = "+" + str(i)
@@ -101,7 +101,7 @@ if draw:
 			dup.append(os.path.exists(str(dir) + str(nam) + "_section_" + str(i) + ".3dm"))
 		if True in dup:# 一個でも重複する場合
 			ans = rs.MessageBox("ファイルがすでに存在します　上書きしますか？", 4, "上書きの確認")
-			if ans == int(6):
+			if ans == int(6):# Massageboxのはいは6で返却される
 				dup = True
 				print("overwriting")
 			else:
@@ -120,7 +120,7 @@ if draw:
 		return text
 
 	# 平面図を作成
-	def MakePlan(num, pt, dir, nam):
+	def MakePlan(num, pt, dir, nam, mode):
 		count = 0
 		while count != len(num):
 			s = time.time()
@@ -131,7 +131,10 @@ if draw:
 			rs.Command("_SelAll")
 			rs.Command("_Zoom " + "_S ")
 			rs.Command("_SelNone")
-			rs.Command("_SelVisible " + "_Enter")
+			if mode == "fast":
+				rs.Command("_SelVisible " + "_Enter")
+			if mode == "slow":
+				rs.Command("_SelAll")
 			sc.doc = Rhino.RhinoDoc.ActiveDoc
 			select = len(rs.SelectedObjects())
 			sc.doc = ghdoc
@@ -155,7 +158,7 @@ if draw:
 			count += 1
 
 	# 断面図を作成(折れ曲がらない切断線のとき)
-	def MakeSimpleSec(dir, nam, num, line):
+	def MakeSimpleSec(dir, nam, num, line, mode):
 		s = time.time()
 		rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(line)) + " " + "_V " + ConvertPt(rs.CurveEndPoint(line)) + " ")
 		rs.Command("_Clippingplane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
@@ -163,7 +166,10 @@ if draw:
 		rs.Command("_SelAll")
 		rs.Command("_Zoom " + "_S ")
 		rs.Command("_SelNone")
-		rs.Command("_SelVisible " + "_Enter")
+		if mode == "fast":
+			rs.Command("_SelVisible " + "_Enter")
+		elif mode == "slow":
+			rs.Command("_SelAll")
 		sc.doc = Rhino.RhinoDoc.ActiveDoc
 		select = len(rs.SelectedObjects())
 		sc.doc = ghdoc
@@ -181,7 +187,7 @@ if draw:
 		print("time = " + str(time.time() - s))
 
 	# 断面図を作成(折れ曲がる切断線のとき)
-	def MakeComplexSec(dir, nam, num, line):
+	def MakeComplexSec(dir, nam, num, line, mode):
 		s = time.time()
 		segment = range(0, len(rs.ExplodeCurves(line)), 2)
 		for i in segment:
@@ -212,15 +218,24 @@ if draw:
 			rs.Command("_Plan")
 			rs.Command("_SelAll")
 			rs.Command("_Zoom " + "_S ")
+			rs.Command("_SelNone")
 			rs.Command("_SelVisible " + "_Enter")
-			rs.Command("-_Make2d " + "_D " + "_U " + "_M=はい " + "_Enter")
-			rs.Command("_Hide")
+			sc.doc = Rhino.RhinoDoc.ActiveDoc
+			select = len(rs.SelectedObjects())
+			sc.doc = ghdoc
+			print("selected " + str(select) + " objects")
+			if select == 0:
+				print("canceled")
+			else:
+				rs.Command("-_Make2d " + "_D " + "_U " + "_M=はい " + "_Enter")
+				rs.Command("_Hide")
 			rs.Command("_CPlane " + "_W " + "_T ")
 			rs.Command("_SelClippingPlane")
 			rs.Command("_Delete")
 		rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[0])) + " ")
 		rs.Command("_Show")
 		rs.Command("_SelCrv")
+		rs.Command("_Zoom " + "_S ")
 		rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 		rs.Command("_CPlane " + "_W " + "_T ")
 		rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".3dm")
@@ -229,7 +244,7 @@ if draw:
 		print("time = " + str(time.time() - s))
 
 	# 屋根伏せ図(断面位置図)の作成
-	def MakeRoofPlan(dir, nam):
+	def MakeRoofPlan(dir, nam, mode):
 		s = time.time()
 		rs.Command("_Plan")
 		rs.Command("_SelCrv")
@@ -248,16 +263,27 @@ if draw:
 			rs.Command("_Lock")
 			rs.Command("_SelCrv")
 			rs.Command("_Hide")
-		rs.Command("_SelVisible " + "_Enter")
-		rs.Command("-_Make2d " + "_D " + "_U " + "_M=はい " + "_Enter")
-		rs.Command("_Unlock")
-		rs.Command("_SelCrv")
-		rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
-		rs.Command("_CPlane " + "_W " + "_T ")
-		rs.Command("-_Export " + dir + nam + "_roof" + ".3dm")
-		rs.Command("_SelCrv")
-		rs.Command("_Delete")
-		rs.Command("_Show")
+			if mode == "fast":
+				rs.Command("_SelVisible " + "_Enter")
+			elif mode == "slow":
+				rs.Command("_SelAll")
+			sc.doc = Rhino.RhinoDoc.ActiveDoc
+			select = len(rs.SelectedObjects())
+			sc.doc = ghdoc
+			print("selected " + str(select) + " objects")
+			if select == 0:
+				print("canceled")
+			else:
+				rs.Command("-_Make2d " + "_D " + "_U " + "_M=はい " + "_Enter")
+				rs.Command("_Unlock")
+				rs.Command("_SelCrv")
+				rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
+				rs.Command("_CPlane " + "_W " + "_T ")
+				rs.Command("-_Export " + dir + nam + "_roof" + ".3dm")
+				rs.Command("_SelCrv")
+				rs.Command("_Delete")
+			rs.Command("_Unlock")
+			rs.Command("_Show")
 		print("time = " + str(time.time() - s))
 
 	# リセットする
@@ -268,6 +294,12 @@ if draw:
 		sc.doc = ghdoc
 		rs.Command("_CPlane " + "_W " + "_T ")
 		rs.Command("_Setview " + "_W " + "_P ")
+		rs.Command("_SelLight")
+		rs.Command("_SelPt")
+		rs.Command("_SelCrv")
+		rs.Command("_Invert")
+		rs.Command("_Zoom " + "_S ")
+		rs.Command("_SelNone")
 		gc.collect()
 		print("■end reset■")
 
@@ -285,7 +317,7 @@ if draw:
 				rs.Command("_Lock")
 				if mode == 0 or mode == 2:# 平面図作成
 					print("■start makeplan■")
-					MakePlan(height, center, directory, name)
+					MakePlan(height, center, directory, name, speed)
 					print("■end makeplan■")
 				if mode == 1 or mode == 2:# 断面図作成
 					print("■start makesection■")
@@ -295,18 +327,17 @@ if draw:
 						sectionline = curve_s[count]
 						if len(rs.ExplodeCurves(sectionline)) == 0:# 折れ曲がらない断面線のとき
 							print("this is simple sectionline")
-							MakeSimpleSec(directory, name, count, sectionline)
+							MakeSimpleSec(directory, name, count, sectionline, speed)
 						else:# 複雑な断面線のとき
 							print("this is complex sectionline")
-							MakeComplexSec(directory, name, count, sectionline)
+							MakeComplexSec(directory, name, count, sectionline, speed)
 						print("completed no." + str(count) + " section")
 						count += 1
 					print("■end makesection■")
 				rs.Command("_Unlock")
 				if mode == 3:# 屋根伏図作成
 					print("■start makeroofplan■")
-					MakeRoofPlan(directory, name)
+					MakeRoofPlan(directory, name, speed)
 					print("■end makeroofplan■")
 				print("//////////end drawing//////////")
 				Reset()
-

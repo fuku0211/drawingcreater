@@ -2,10 +2,10 @@
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
 import Rhino
-import gc
 import os
 import time
 from math import sqrt
+import sys
 
 len_p = str(len(height)) + " 枚の平面図を生成します"
 len_s = str(len(curve_s)) + " 枚の断面図を生成します"
@@ -90,26 +90,50 @@ if draw:
 		return folder# フォルダを作成orすでに存在したらTrueで返却
 
 	# ファイル名に重複がないか確認する
-	def ConfirmDup(dir, num, nam, line):
+	def ConfirmDup(dir, nam, height, line, switch, extension):
 		print("■start confirmdup■")
+		
+		# 平面図の確認
+		def Planduplicate(dire, name, num_plan, exte):
+			result = []
+			for i in num_plan:
+				if i > 0:
+					i = "+" + str(i)
+				result.append(os.path.exists(str(dire) + str(name) + "_plan_" + str(i) + "." + str(exte)))
+			return result
+
+		# 断面図の確認
+		def SecDuplicate(dire, name, num_sec, exte):
+			result = []
+			for i in range(len(num_sec)):
+				result.append(os.path.exists(str(dire) + str(name) + "_section_" + str(i) + "." + str(exte)))
+			return result
+
+		# 配置図の確認
+		def RoofDuplicate(dire, name, exte):
+			result = []
+			result.append(os.path.exists(str(dire) + str(name) + "_roof" + "." + str(exte)))
+			return result
+
 		dup = []# ダブリがある場合はTrue、ない場合はFalseが格納されるリスト
-		for i in num:# 指定の場所で重複しないか確認(平面)
-			if i > 0:
-				i = "+" + str(i)
-			dup.append(os.path.exists(str(dir) + str(nam) + "_plan_" + str(i) + ".3dm"))
-		for i in range(len(curve_s)):# 指定の場所で重複しないか確認(断面)
-			dup.append(os.path.exists(str(dir) + str(nam) + "_section_" + str(i) + ".3dm"))
+		if switch == 0 or switch == 2:# モードが平面図のみor両方のとき
+			dup.extend(Planduplicate(dir, nam, height, extension))
+		if switch == 1 or switch == 2:# モードが断面図のみor両方のとき
+			dup.extend(SecDuplicate(dir, nam, line, extension))
+		dup.extend(RoofDuplicate(dir, nam, extension))
+
+		print("duplicate " + str(dup.count(True)) + " files")
 		if True in dup:# 一個でも重複する場合
 			ans = rs.MessageBox("ファイルがすでに存在します　上書きしますか？", 4, "上書きの確認")
 			if ans == int(6):# Massageboxのはいは6で返却される
-				dup = True
+				duplicate = True
 				print("overwriting")
 			else:
 				rs.MessageBox("作図をキャンセルしました")
-				dup = False
+				duplicate = False
 				print("canceled writing")
 		else:
-			dup = True
+			duplicate = True
 			print("no duplicate")
 		print("■end confirmdup■")
 		return dup# 重複が存在しないor上書きする場合はTrueで返却
@@ -120,7 +144,7 @@ if draw:
 		return text
 
 	# 平面図を作成
-	def MakePlan(num, pt, dir, nam, mode):
+	def MakePlan(num, pt, dir, nam, mode, ext):
 		count = 0
 		while count != len(num):
 			s = time.time()
@@ -148,7 +172,10 @@ if draw:
 					end = "+" + str(num[count])
 				else:
 					end = num[count]
-				rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + ".3dm")
+				if ext == "dwg":
+					rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+				else:
+					rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + "." + str(ext))
 				rs.Command("_SelCrv")
 				print("exported plan")
 			rs.Command("_SelClippingPlane")
@@ -158,8 +185,9 @@ if draw:
 			count += 1
 
 	# 断面図を作成(折れ曲がらない切断線のとき)
-	def MakeSimpleSec(dir, nam, num, line, mode):
+	def MakeSimpleSec(dir, nam, num, line, mode, ext):
 		s = time.time()
+		rs.Command("_CPlane " + "_W " + "_T ")
 		rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(line)) + " " + "_V " + ConvertPt(rs.CurveEndPoint(line)) + " ")
 		rs.Command("_Clippingplane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 		rs.Command("_Plan")
@@ -179,7 +207,10 @@ if draw:
 		else:
 			rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 			rs.Command("_CPlane " + "_W " + "_T ")
-			rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".3dm")
+			if ext == "dwg":
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+			else:
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + "." + str(ext))
 			print("exported section")
 			rs.Command("_SelCrv")
 		rs.Command("_SelClippingPlane")
@@ -187,33 +218,37 @@ if draw:
 		print("time = " + str(time.time() - s))
 
 	# 断面図を作成(折れ曲がる切断線のとき)
-	def MakeComplexSec(dir, nam, num, line, mode):
+	def MakeComplexSec(dir, nam, num, line, mode, ext):
 		s = time.time()
 		segment = range(0, len(rs.ExplodeCurves(line)), 2)
+		rs.Command("_CPlane " + "_W " + "_T ")
 		for i in segment:
 			print("segment num = " + str(i))
 			if i == 0:
 				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " ")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i + 1])) + " ")
+				rs.Command("_CPlane " + "_W " + "_T")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " " + "_Z " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " ")
+				rs.Command("_CPlane " + "_R " + "_Y " + "180")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 			elif i == segment[-1]:
 				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " ")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i - 1])) + " ")
+				rs.Command("_CPlane " + "_W " + "_T")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " " + "_Z " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " ")
+				rs.Command("_CPlane " + "_R " + "_Y " + "180")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 			else:
 				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " ")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i + 1])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i + 1])) + " ")
+				rs.Command("_CPlane " + "_W " + "_T")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " " + "_Z " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " ")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i - 1])) + " " + "_V " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i - 1])) + " ")
+				rs.Command("_CPlane " + "_W " + "_T")
+				rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[i])) + " " + "_Z " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[i])) + " ")
+				rs.Command("_CPlane " + "_R " + "_Y " + "180")
 				rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
-			rs.Command("_CPlane " + "_W " + "_T ")
+			rs.Command("_CPlane " + "_W " + "_T")
 			rs.Command("_CPlane " + "_I " + ConvertPt(rs.CurveStartPoint(rs.ExplodeCurves(line)[0])) + " " + "_V " + ConvertPt(rs.CurveEndPoint(rs.ExplodeCurves(line)[0])) + " ")
 			rs.Command("_Plan")
 			rs.Command("_SelAll")
@@ -236,15 +271,25 @@ if draw:
 		rs.Command("_Show")
 		rs.Command("_SelCrv")
 		rs.Command("_Zoom " + "_S ")
-		rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
-		rs.Command("_CPlane " + "_W " + "_T ")
-		rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".3dm")
+		sc.doc = Rhino.RhinoDoc.ActiveDoc
+		select = len(rs.SelectedObjects())
+		sc.doc = ghdoc
+		print("selected " + str(select) + " objects")
+		if select == 0:
+			print("canceled")
+		else:
+			rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
+			rs.Command("_CPlane " + "_W " + "_T ")
+			if ext == "dwg":
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+			else:
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + "." + str(ext))
 		rs.Command("_SelCrv")
 		rs.Command("_Delete")
 		print("time = " + str(time.time() - s))
 
-	# 屋根伏せ図(断面位置図)の作成
-	def MakeRoofPlan(dir, nam, mode):
+	# 配置図(断面位置図)の作成
+	def MakeRoofPlan(dir, nam, mode, ext):
 		s = time.time()
 		rs.Command("_Plan")
 		rs.Command("_SelCrv")
@@ -279,7 +324,10 @@ if draw:
 				rs.Command("_SelCrv")
 				rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 				rs.Command("_CPlane " + "_W " + "_T ")
-				rs.Command("-_Export " + dir + nam + "_roof" + ".3dm")
+				if ext == "dwg":
+					rs.Command("-_Export " + dir + nam + "_roof_" + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+				else:
+					rs.Command("-_Export " + dir + nam + "_roof_" + "." + str(ext))
 				rs.Command("_SelCrv")
 				rs.Command("_Delete")
 			rs.Command("_Unlock")
@@ -300,7 +348,6 @@ if draw:
 		rs.Command("_Invert")
 		rs.Command("_Zoom " + "_S ")
 		rs.Command("_SelNone")
-		gc.collect()
 		print("■end reset■")
 
 	#/////////////////////////////////////////////////////////////////////////
@@ -308,7 +355,7 @@ if draw:
 	#/////////////////////////////////////////////////////////////////////////
 	if ConfirmLayer():# Make2Dレイヤーの存在を確認
 		if Confirmfolder(directory):# フォルダの存在を確認
-			if ConfirmDup(directory, height, name, curve_s):# ファイルの重複を確認
+			if ConfirmDup(directory, name, height, curve_s, mode, extension):# ファイルの重複を確認
 				rs.Command("_CPlane " + "_W " + "_T ")
 				rs.Command("_Show")
 				rs.Command("_SelLight")
@@ -317,7 +364,7 @@ if draw:
 				rs.Command("_Lock")
 				if mode == 0 or mode == 2:# 平面図作成
 					print("■start makeplan■")
-					MakePlan(height, center, directory, name, speed)
+					MakePlan(height, center, directory, name, speed, extension)
 					print("■end makeplan■")
 				if mode == 1 or mode == 2:# 断面図作成
 					print("■start makesection■")
@@ -327,17 +374,17 @@ if draw:
 						sectionline = curve_s[count]
 						if len(rs.ExplodeCurves(sectionline)) == 0:# 折れ曲がらない断面線のとき
 							print("this is simple sectionline")
-							MakeSimpleSec(directory, name, count, sectionline, speed)
+							MakeSimpleSec(directory, name, count, sectionline, speed, extension)
 						else:# 複雑な断面線のとき
 							print("this is complex sectionline")
-							MakeComplexSec(directory, name, count, sectionline, speed)
+							MakeComplexSec(directory, name, count, sectionline, speed, extension)
 						print("completed no." + str(count) + " section")
 						count += 1
 					print("■end makesection■")
 				rs.Command("_Unlock")
-				if mode == 3:# 屋根伏図作成
+				if mode == 3:# 配置図作成
 					print("■start makeroofplan■")
-					MakeRoofPlan(directory, name, speed)
+					MakeRoofPlan(directory, name, speed, extension)
 					print("■end makeroofplan■")
 				print("//////////end drawing//////////")
 				Reset()

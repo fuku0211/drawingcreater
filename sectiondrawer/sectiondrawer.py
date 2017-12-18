@@ -55,7 +55,7 @@ if draw:
 		if "Make2D" in layers:
 			dellayer = rs.MessageBox("既に存在する'Make2D'レイヤーは削除されます　問題ないですか？", 4, "レイヤーの確認")
 			if dellayer == int(6):# Massageboxのはいは6で返却される
-				rs.PurgeLayer("Make2D")# 作図中にMake2Dレイヤーが作成されるため、前もって削除
+				rs.DeleteLayer("Make2D")# 作図中にMake2Dレイヤーが作成されるため、前もって削除
 				layer = True
 				print("deleted layer")
 			else:
@@ -114,23 +114,35 @@ if draw:
 			result.append(os.path.exists(str(dire) + str(name) + "_roof" + "." + str(exte)))
 			return result
 
-		dup = []# ダブリがある場合はTrue、ない場合はFalseが格納されるリスト
+		dup_p = []# ダブリがある場合はTrue、ない場合はFalseが格納されるリスト
+		dup_s = []
+		dup_r = []
 		if switch == 0 or switch == 2:# モードが平面図のみor両方のとき
-			dup.extend(Planduplicate(dir, nam, height, extension))
+			dup_p.extend(Planduplicate(dir, nam, height, extension))
 		if switch == 1 or switch == 2:# モードが断面図のみor両方のとき
-			dup.extend(SecDuplicate(dir, nam, line, extension))
-		dup.extend(RoofDuplicate(dir, nam, extension))
+			dup_s.extend(SecDuplicate(dir, nam, line, extension))
+		dup_r.extend(RoofDuplicate(dir, nam, extension))
 
-		print("duplicate " + str(dup.count(True)) + " files")
-		if True in dup:# 一個でも重複する場合
-			ans = rs.MessageBox("ファイルがすでに存在します　上書きしますか？", 4, "上書きの確認")
-			if ans == int(6):# Massageboxのはいは6で返却される
-				duplicate = True
-				print("overwriting")
-			else:
-				rs.MessageBox("作図をキャンセルしました")
-				duplicate = False
-				print("canceled writing")
+		if True in dup_p or True in dup_s or True in dup_r:# 一個でも重複する場合
+			print("duplicate files" + " p = " + str(dup_p.count(True)) + " s = " + str(dup_s.count(True)) + " r = " + str(dup_r.count(True)))
+			if switch == 0 or switch == 1 or switch == 2:
+				ans = rs.MessageBox("同じ名前のファイルが存在します  平面図:" + str(dup_p.count(True)) + "枚 " + "断面図:" + str(dup_s.count(True)) + "枚  上書きしますか？", 4, "ファイルの重複")
+				if ans == int(6):# Massageboxのはいは6で返却される
+					duplicate = True
+					print("overwriting")
+				else:
+					rs.MessageBox("作図をキャンセルしました")
+					duplicate = False
+					print("canceled writing")
+			elif switch == 3:
+				ans = rs.MessageBox("同じ名前のファイルが存在します  上書きしますか？", 4, "ファイルの重複")
+				if ans == int(6):# Massageboxのはいは6で返却される
+					duplicate = True
+					print("overwriting")
+				else:
+					rs.MessageBox("作図をキャンセルしました")
+					duplicate = False
+					print("canceled writing")
 		else:
 			duplicate = True
 			print("no duplicate")
@@ -147,7 +159,7 @@ if draw:
 		count = 0
 		while count != len(num):
 			s = time.time()
-			print("makeing no." + str(count) + " plan")
+			print("making no." + str(count) + " plan")
 			rs.Command("_CPlane " + "_T " + ConvertPt(pt[count]))
 			rs.Command("_ClippingPlane " + "_C " + "0,0,0" + " " + str(1000) + " " + str(1000) + " ")
 			rs.Command("_Plan")
@@ -172,7 +184,7 @@ if draw:
 				else:
 					end = num[count]
 				if ext == "dwg":
-					rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+					rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + ".dwg" + " " + "_Enter")
 				else:
 					rs.Command("-_Export " + dir + nam + "_plan_" + str(end) + "." + str(ext))
 				rs.Command("_SelCrv")
@@ -207,7 +219,7 @@ if draw:
 			rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 			rs.Command("_CPlane " + "_W " + "_T ")
 			if ext == "dwg":
-				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_Enter")
 			else:
 				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + "." + str(ext))
 			print("exported section")
@@ -280,7 +292,7 @@ if draw:
 			rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 			rs.Command("_CPlane " + "_W " + "_T ")
 			if ext == "dwg":
-				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + ".dwg" + " " + "_Enter")
 			else:
 				rs.Command("-_Export " + dir + nam + "_section_" + str(num) + "." + str(ext))
 		rs.Command("_SelCrv")
@@ -324,9 +336,9 @@ if draw:
 				rs.Command("-_Make2d " + "_D " + "_C " + "_M=はい " + "_Enter")
 				rs.Command("_CPlane " + "_W " + "_T ")
 				if ext == "dwg":
-					rs.Command("-_Export " + dir + nam + "_roof_" + ".dwg" + " " + "_S " + "2004 ﾎﾟﾘﾗｲﾝ" + " " + "_Enter")
+					rs.Command("-_Export " + dir + nam + "_roof" + ".dwg" + " " + "_Enter")
 				else:
-					rs.Command("-_Export " + dir + nam + "_roof_" + "." + str(ext))
+					rs.Command("-_Export " + dir + nam + "_roof" + "." + str(ext))
 				rs.Command("_SelCrv")
 				rs.Command("_Delete")
 			rs.Command("_Unlock")

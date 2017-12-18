@@ -3,7 +3,8 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>6761f32e-7f35-45e1-b41a-d823fdeedfe2</ProjectGuid>
-    <ProjectHome>.</ProjectHome>
+    <ProjectHome>
+    </ProjectHome>
     <StartupFile>sectiondrawer.py</StartupFile>
     <SearchPath>
     </SearchPath>

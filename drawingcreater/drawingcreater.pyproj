@@ -5,14 +5,14 @@
     <ProjectGuid>6761f32e-7f35-45e1-b41a-d823fdeedfe2</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>sectiondrawer.py</StartupFile>
+    <StartupFile>drawingcreater.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <InterpreterId>IronPython|2.7-32</InterpreterId>
     <LaunchProvider>IronPython (.NET) launcher</LaunchProvider>
     <OutputPath>.</OutputPath>
-    <Name>sectiondrawer</Name>
+    <Name>drawingcreater</Name>
     <RootNamespace>sectiondrawer</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -24,7 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="sectiondrawer.py" />
+    <None Include="drawingcreater.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="IronPython|2.7-32" />

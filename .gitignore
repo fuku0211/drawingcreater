@@ -265,3 +265,6 @@ manual/
 
 # appフォルダを無視
 app/
+
+# sampleフォルダを無視
+sample/
